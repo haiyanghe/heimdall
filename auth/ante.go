@@ -311,9 +311,7 @@ func SetGasMeter(simulate bool, ctx sdk.Context, gasLimit uint64) sdk.Context {
 	return ctx.WithGasMeter(sdk.NewGasMeter(gasLimit))
 }
 
-// GetSignBytes returns a slice of bytes to sign over for a given transaction
-// and an account.
-func GetSignBytes(ctx sdk.Context, chainID string, stdTx authTypes.StdTx, acc authTypes.Account, genesis bool) []byte {
+func GetSignBytes(ctx sdk.Context, stdTx authTypes.StdTx, acc authTypes.Account) []byte {
 	blockHeight := ctx.BlockHeight()
 	chainID := ctx.ChainID()
 	sequence := acc.GetSequence()
@@ -337,7 +335,7 @@ func GetSignBytes(ctx sdk.Context, chainID string, stdTx authTypes.StdTx, acc au
 		(blockHeight <= 8588888 && blockHeight >= 8587012)) &&
 		chainID == "heimdall-137" {
 		switch {
-			case blockHeight == 8587012 && accNum == 161 && sequence == 10553,
+		case blockHeight == 8587012 && accNum == 161 && sequence == 10553,
 			blockHeight == 8587037 && accNum == 161 && sequence == 10554,
 			blockHeight == 8587048 && accNum == 161 && sequence == 10555,
 			blockHeight == 8587061 && accNum == 161 && sequence == 10556,
@@ -362,6 +360,7 @@ func GetSignBytes(ctx sdk.Context, chainID string, stdTx authTypes.StdTx, acc au
 			blockHeight == 9266259 && accNum == 1 && sequence == 1340079:
 			const old = ",\"data\":\"0x\","
 			const new = ",\"data\":\"0x0\","
+			signBytes = bytes.Replace(signBytes, []byte(old), []byte(new), 1)
 		}
 	}
 
