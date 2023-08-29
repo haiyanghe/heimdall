@@ -314,23 +314,55 @@ func SetGasMeter(simulate bool, ctx sdk.Context, gasLimit uint64) sdk.Context {
 // GetSignBytes returns a slice of bytes to sign over for a given transaction
 // and an account.
 func GetSignBytes(ctx sdk.Context, chainID string, stdTx authTypes.StdTx, acc authTypes.Account, genesis bool) []byte {
-	var accNum uint64
-	if !genesis {
+	blockHeight := ctx.BlockHeight()
+	chainID := ctx.ChainID()
+	sequence := acc.GetSequence()
+
+	var accNum uint64 = 0
+	if blockHeight != 0 {
 		accNum = acc.GetAccountNumber()
 	}
 
-	signBytes := authTypes.StdSignBytes(chainID, accNum, acc.GetSequence(), stdTx.Msg, stdTx.Memo)
+	signBytes := authTypes.StdSignBytes(chainID, accNum, sequence, stdTx.Msg, stdTx.Memo)
 
-	if ctx.BlockHeight() > helper.GetNewHexToStringAlgoHeight() {
-		return signBytes
-	}
-
-	const newData = ",\"data\":\"0x\","
-
-	const oldData = ",\"data\":\"0x0\","
-
-	if bytes.Contains(signBytes, []byte(newData)) {
-		signBytes = bytes.Replace(signBytes, []byte(newData), []byte(oldData), 1)
+	// The following twenty three transactions on mainnet were signed with a non-standard
+	// serialisation format which the code fixes up so that the signatures verify
+	// correctly.
+	// Specifically the messages are serialialised to a sorted compact json format which
+	// is then keccak hashed and signed. All of the 23 messages had an empty "data" field
+	// which is normally serialised as "data":"0x" however for these 23 messages the "data"
+	// field was serialised as "data":"0x0" when they were signed.
+	if blockHeight <= 9266259 &&
+		(blockHeight >= 9265930 ||
+		(blockHeight <= 8588888 && blockHeight >= 8587012)) &&
+		chainID == "heimdall-137" {
+		switch {
+			case blockHeight == 8587012 && accNum == 161 && sequence == 10553,
+			blockHeight == 8587037 && accNum == 161 && sequence == 10554,
+			blockHeight == 8587048 && accNum == 161 && sequence == 10555,
+			blockHeight == 8587061 && accNum == 161 && sequence == 10556,
+			blockHeight == 8587111 && accNum == 161 && sequence == 10557,
+			blockHeight == 8587179 && accNum == 161 && sequence == 10560,
+			blockHeight == 8587192 && accNum == 161 && sequence == 10561,
+			blockHeight == 8587241 && accNum == 161 && sequence == 10562,
+			blockHeight == 8587394 && accNum == 161 && sequence == 10563,
+			blockHeight == 8587396 && accNum == 161 && sequence == 10564,
+			blockHeight == 8587452 && accNum == 161 && sequence == 10565,
+			blockHeight == 8587476 && accNum == 161 && sequence == 10566,
+			blockHeight == 8587483 && accNum == 161 && sequence == 10567,
+			blockHeight == 8587497 && accNum == 161 && sequence == 10568,
+			blockHeight == 8588129 && accNum == 2 && sequence == 22281,
+			blockHeight == 8588137 && accNum == 2 && sequence == 22282,
+			blockHeight == 8588746 && accNum == 2 && sequence == 22283,
+			blockHeight == 8588888 && accNum == 2 && sequence == 22284,
+			blockHeight == 9265930 && accNum == 1 && sequence == 1339911,
+			blockHeight == 9265947 && accNum == 1 && sequence == 1339922,
+			blockHeight == 9265999 && accNum == 11 && sequence == 5565,
+			blockHeight == 9266007 && accNum == 1 && sequence == 1339955,
+			blockHeight == 9266259 && accNum == 1 && sequence == 1340079:
+			const old = ",\"data\":\"0x\","
+			const new = ",\"data\":\"0x0\","
+		}
 	}
 
 	return signBytes
