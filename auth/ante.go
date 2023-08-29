@@ -143,8 +143,6 @@ func NewAnteHandler(
 			return newCtx, sdk.ErrUnauthorized("wrong number of signers").Result(), true
 		}
 
-		isGenesis := ctx.BlockHeight() == 0
-
 		// fetch first signer, who's going to pay the fees
 		signerAcc, res := GetSignerAcc(newCtx, ak, types.AccAddressToHeimdallAddress(signerAddrs[0]))
 		if !res.IsOK() {
@@ -167,14 +165,15 @@ func NewAnteHandler(
 		stdSigs := stdTx.GetSignatures()
 
 		// check signature, return account with incremented nonce
-		signBytes := GetSignBytes(ctx, newCtx.ChainID(), stdTx, signerAcc, isGenesis)
+		signBytes := GetSignBytes(newCtx, stdTx, signerAcc)
 
-		signerAcc, res = processSig(newCtx, signerAcc, stdSigs[0], signBytes, simulate, params, sigGasConsumer)
+		updatedAcc, res := processSig(newCtx, signerAcc, stdSigs[0], signBytes, simulate, params, sigGasConsumer)
 		if !res.IsOK() {
+			ak.Logger(ctx).Info("processSig: bad signature", "signerAcc", signerAcc, "sig", stdSigs[0], "signBytes", signBytes, "params", params, "res", res)
 			return newCtx, res, true
 		}
 
-		ak.SetAccount(newCtx, signerAcc)
+		ak.SetAccount(newCtx, updatedAcc)
 
 		// TODO: tx tags (?)
 		return newCtx, sdk.Result{GasWanted: gasForTx}, false // continue...
