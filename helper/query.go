@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
@@ -109,6 +110,14 @@ func ValidateTxResult(cliCtx cosmosContext.CLIContext, resTx *ctypes.ResultTx) e
 		check, err := cliCtx.Verify(resTx.Height)
 		if err != nil {
 			return err
+		}
+
+		if err != nil &&
+			check.Header.NumTxs == 1 &&
+			bytes.Equal(check.Header.DataHash, resTx.Hash) &&
+			bytes.Equal(check.Header.DataHash, resTx.Tx.Hash()) &&
+			resTx.Index == 0 {
+			err = nil
 		}
 
 		err = resTx.Proof.Validate(check.Header.DataHash)
